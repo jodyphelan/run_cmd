@@ -5,18 +5,20 @@ from joblib import Parallel, delayed
 import subprocess as sp
 # from tqdm.rich import trange, tqdm
 from tqdm import tqdm
+from typing import List, Dict, Tuple, Union, Optional, Any, Callable, Iterable, TypeVar, Generic
 
 __version__ = "0.0.1"
 
-def sanitize_region(region):
+def sanitize_region(region: str) -> str:
     return region.replace(":","_").replace("-","_")
-def genome_job(cmd,region):
+
+def genome_job(cmd: str,region: str) -> sp.CompletedProcess:
     region_safe = sanitize_region(region)
     out = sp.run(cmd.format(region=region,region_safe=region_safe),shell=True,stderr=sp.PIPE,stdout=sp.PIPE)
     return out
 
 
-def get_genome_chunks(fasta,nchunks):
+def get_genome_chunks(fasta: str,nchunks: int) -> List[str]:
     """Split genome into n chunks"""
     genome = pysam.FastaFile(fasta)
     total_length = sum(genome.lengths)
@@ -34,8 +36,7 @@ def get_genome_chunks(fasta,nchunks):
     regions = [f"{r[0]}:{r[1]}-{r[2]}" for r in chunks]
     return regions
 
-
-def load_bed_regions(bed_file):
+def load_bed_regions(bed_file: str) -> List[str]:
     regions = []
     with open(bed_file) as fh:
         for line in fh:
@@ -45,7 +46,7 @@ def load_bed_regions(bed_file):
             regions.append(f"{chrom}:{start}-{end}")
     return regions
 
-def run_cmd_parallel_on_genome(cmd,genome,threads=2,task=None,bed_file=None):
+def run_cmd_parallel_on_genome(cmd: str,genome: str,threads: int = 2,task: str=None,bed_file: str=None) -> List[sp.CompletedProcess]:
     if bed_file:
         regions = load_bed_regions(bed_file)
     else:
@@ -54,10 +55,11 @@ def run_cmd_parallel_on_genome(cmd,genome,threads=2,task=None,bed_file=None):
     parallel = Parallel(n_jobs=threads, return_as="generator")
     task = task if task else "Running command in parallel..."
     results = [r for r in tqdm(parallel(delayed(genome_job)(cmd,r) for r in regions),total=len(regions),desc=task)]
-    print(results)
+    return results
 
 
-def run_cmd(cmd,log=None):
+def run_cmd(cmd: str,log: str=None) -> sp.CompletedProcess:
     print(cmd)
     output = open(log,"w") if log else sp.PIPE
-    sp.run(cmd,shell=True,check=True,stderr=output,stdout=output)
+    result = sp.run(cmd,shell=True,check=True,stderr=output,stdout=output)
+    return result

@@ -5,20 +5,22 @@ from joblib import Parallel, delayed
 import subprocess as sp
 # from tqdm.rich import trange, tqdm
 from tqdm import tqdm
-from typing import List, Dict, Tuple, Union, Optional, Any, Callable, Iterable, TypeVar, Generic
+from typing import List, NewType
 
 __version__ = "0.0.1"
 
 def sanitize_region(region: str) -> str:
     return region.replace(":","_").replace("-","_")
 
-def genome_job(cmd: str,region: str) -> sp.CompletedProcess:
+Region = NewType("Region",str)
+
+def genome_job(cmd: str,region: Region) -> sp.CompletedProcess:
     region_safe = sanitize_region(region)
     out = sp.run(cmd.format(region=region,region_safe=region_safe),shell=True,stderr=sp.PIPE,stdout=sp.PIPE)
     return out
 
 
-def get_genome_chunks(fasta: str,nchunks: int) -> List[str]:
+def get_genome_chunks(fasta: str,nchunks: int) -> List[Region]:
     """Split genome into n chunks"""
     genome = pysam.FastaFile(fasta)
     total_length = sum(genome.lengths)
@@ -36,7 +38,7 @@ def get_genome_chunks(fasta: str,nchunks: int) -> List[str]:
     regions = [f"{r[0]}:{r[1]}-{r[2]}" for r in chunks]
     return regions
 
-def load_bed_regions(bed_file: str) -> List[str]:
+def load_bed_regions(bed_file: str) -> List[Region]:
     regions = []
     with open(bed_file) as fh:
         for line in fh:
